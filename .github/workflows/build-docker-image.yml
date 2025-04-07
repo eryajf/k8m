@@ -113,7 +113,7 @@ jobs:
           --build-arg MODEL=${{ env.OPENAI_API_MODEL }} \
           --build-arg API_KEY=${{ secrets.OPENAI_API_KEY }} \
           --build-arg API_URL=${{ env.OPENAI_API_URL }} \
-          --build-arg BUILD_DATE=${{ steps.date.outputs.today }}
+          --build-arg BUILD_DATE=${{ steps.date.outputs.today }} \
           -t ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:latest \
           -t ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:${{ steps.date.outputs.today }} \
           -t ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:${{ env.GITHUB_REF_NAME }} \

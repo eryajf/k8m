@@ -22,10 +22,10 @@ on:
         description: "Test scenario tags"
 
 env:
-  DOCKERHUB_USERNAME: weibh
+  DOCKERHUB_USERNAME: eryajf
   ALIHUB_URL: registry.cn-hangzhou.aliyuncs.com
-  ALIHUB_USERNAME: weibh
-  ALIHUB_IMAGE_REPONAME: minik8m
+  ALIHUB_USERNAME: eryajf
+  ALIHUB_IMAGE_REPONAME: eryajf
   IMAGE_REPONAME: k8m
   OPENAI_API_MODEL: Qwen/Qwen2.5-7B-Instruct
   API_URL: https://api.siliconflow.cn/v1
@@ -78,11 +78,13 @@ jobs:
         run: echo "::set-output name=today::$(date +'%Y%m%d-%H%M')"
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
 
       - name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
@@ -101,30 +103,50 @@ jobs:
           username: ${{ env.ALIHUB_USERNAME }}
           password: ${{ secrets.ALIHUB_TOKEN }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.action
-          push: ${{ github.event_name != 'pull_request' }}
-          cache-from: type=registry,ref=${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:buildcache,mode=max
-          platforms: linux/amd64,linux/arm64
-          #platforms: linux/amd64
-          # 给清单打上多个标签
-          tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:latest
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:${{ steps.date.outputs.today }}
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:${{ env.GITHUB_REF_NAME }}
-            ${{ env.ALIHUB_URL }}/${{ env.ALIHUB_IMAGE_REPONAME }}/${{ env.IMAGE_REPONAME }}:${{ env.GITHUB_REF_NAME }}
-            ${{ env.ALIHUB_URL }}/${{ env.ALIHUB_IMAGE_REPONAME }}/${{ env.IMAGE_REPONAME }}:latest
-            ${{ env.ALIHUB_URL }}/${{ env.ALIHUB_IMAGE_REPONAME }}/${{ env.IMAGE_REPONAME }}:${{ steps.date.outputs.today }}
-          build-args: |
-            GIT_COMMIT=${{ github.sha }}
-            GIT_TAG=${{ github.ref_name }}
-            GIT_REPOSITORY=${{ github.repository }}
-            VERSION =${{ env.GITHUB_REF_NAME }}
-            MODEL=${{ env.OPENAI_API_MODEL }}
-            API_KEY=${{ secrets.OPENAI_API_KEY }}
-            API_URL=${{ env.OPENAI_API_URL }}
-            BUILD_DATE=${{ steps.date.outputs.today }}
+      - name: Build container
+        run: |
+          docker buildx build -f Dockerfile.action --push \
+          --build-arg GIT_COMMIT=${{ github.sha }} \
+          --build-arg GIT_TAG=${{ github.ref_name }} \
+          --build-arg GIT_REPOSITORY=${{ github.repository }} \
+          --build-arg VERSION =${{ env.GITHUB_REF_NAME }} \
+          --build-arg MODEL=${{ env.OPENAI_API_MODEL }} \
+          --build-arg API_KEY=${{ secrets.OPENAI_API_KEY }} \
+          --build-arg API_URL=${{ env.OPENAI_API_URL }} \
+          --build-arg BUILD_DATE=${{ steps.date.outputs.today }}
+          -t ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:latest \
+          -t ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:${{ steps.date.outputs.today }} \
+          -t ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:${{ env.GITHUB_REF_NAME }} \
+          -t ${{ env.ALIHUB_URL }}/${{ env.ALIHUB_IMAGE_REPONAME }}/${{ env.IMAGE_REPONAME }}:${{ env.GITHUB_REF_NAME }} \
+          -t ${{ env.ALIHUB_URL }}/${{ env.ALIHUB_IMAGE_REPONAME }}/${{ env.IMAGE_REPONAME }}:latest \
+          -t ${{ env.ALIHUB_URL }}/${{ env.ALIHUB_IMAGE_REPONAME }}/${{ env.IMAGE_REPONAME }}:${{ steps.date.outputs.today }} \
+          --platform linux/amd64,linux/arm64,linux/arm/v7 .
+
+
+      # - name: Build and push
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     file: ./Dockerfile.action
+      #     push: ${{ github.event_name != 'pull_request' }}
+      #     cache-from: type=registry,ref=${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:buildcache
+      #     cache-to: type=registry,ref=${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:buildcache,mode=max
+      #     platforms: linux/amd64,linux/arm64
+      #     #platforms: linux/amd64
+      #     # 给清单打上多个标签
+      #     tags: |
+      #       ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:latest
+      #       ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:${{ steps.date.outputs.today }}
+      #       ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_REPONAME }}:${{ env.GITHUB_REF_NAME }}
+      #       ${{ env.ALIHUB_URL }}/${{ env.ALIHUB_IMAGE_REPONAME }}/${{ env.IMAGE_REPONAME }}:${{ env.GITHUB_REF_NAME }}
+      #       ${{ env.ALIHUB_URL }}/${{ env.ALIHUB_IMAGE_REPONAME }}/${{ env.IMAGE_REPONAME }}:latest
+      #       ${{ env.ALIHUB_URL }}/${{ env.ALIHUB_IMAGE_REPONAME }}/${{ env.IMAGE_REPONAME }}:${{ steps.date.outputs.today }}
+      #     build-args: |
+      #       GIT_COMMIT=${{ github.sha }}
+      #       GIT_TAG=${{ github.ref_name }}
+      #       GIT_REPOSITORY=${{ github.repository }}
+      #       VERSION =${{ env.GITHUB_REF_NAME }}
+      #       MODEL=${{ env.OPENAI_API_MODEL }}
+      #       API_KEY=${{ secrets.OPENAI_API_KEY }}
+      #       API_URL=${{ env.OPENAI_API_URL }}
+      #       BUILD_DATE=${{ steps.date.outputs.today }}
